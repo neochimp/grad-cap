@@ -1,9 +1,11 @@
 #include <Wire.h>
 #include <Adafruit_Protomatter.h>
+#include <vector>
+#include <string>
 
 #define HEIGHT 64
 #define WIDTH 64
-#define MAX_FPS 45
+#define MAX_FPS 2
 //MUST BE BETWEEN 0 AND 1
 #define BRIGHTNESS 0.3
 
@@ -56,5 +58,22 @@ uint16_t colorFromChar(char c) {
     case 'b': return COLOR_DIMMED(0, 0, 255);
     case 'y': return COLOR_DIMMED(245, 237, 0);
     default:  return 0;
+  }
+}
+
+void drawSpriteFill(const std::vector<std::string> sprite) {
+  int scaleY = HEIGHT/sprite.size();
+  int scaleX = WIDTH/sprite[0].size();
+  for (int y = 0; y < sprite.size(); y++) {
+    for (int x = 0; x < sprite[y].size(); x++) {
+      uint16_t c = colorFromChar(sprite[y][x]);
+      if (c != 0) {
+        for (int dy = 0; dy < scaleY; dy++) {
+          for (int dx = 0; dx < scaleX; dx++){
+            matrix.drawPixel(x * scaleX + dx, y * scaleY + dy, c);
+          }
+        }
+      }
+    }
   }
 }
