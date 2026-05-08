@@ -1,7 +1,6 @@
 #include <Wire.h>
 #include <Adafruit_Protomatter.h>
-#include <vector>
-#include <string>
+#include "src/sprites.h"
 
 #define HEIGHT 64
 #define WIDTH 64
@@ -37,15 +36,30 @@ Adafruit_Protomatter matrix(
   WIDTH, 4, 1, rgbPins, NUM_ADDR_PINS, addrPins,
   clockPin, latchPin, oePin, true);
 
-
 void setup() {
   Serial.begin(115200);
   ProtomatterStatus status = matrix.begin();
   Serial.printf("Protomatter begin() status: %d\n", status);
 }
 
+uint16_t state = 0;
 void loop() {
+  // Limit the animation frame rate to MAX_FPS.  Because the subsequent sand
+  // calculations are non-deterministic (don't always take the same amount
+  // of time, depending on their current states), this helps ensure that
+  // things like gravity appear constant in the simulation.
+  uint32_t t;
+  while(((t = micros()) - prevTime) < (1000000L / MAX_FPS));
+  prevTime = t;
+
   matrix.fillScreen(0x0); //clear previous data
+  if(state == 0){
+    drawSpriteFill(sdsu);
+    state = 1;
+  }else if(state == 1){
+    drawSpriteFill(brown);
+    state = 0;
+  }
 
   matrix.show(); // Copy data to matrix buffers
 }
