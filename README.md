@@ -6,9 +6,9 @@ I am graduating with my bachelor's this year from SDSU and I am extra asf.
 
 ## Displaying Images
 
-In order to display images on the cap you pass a 2d array that represent each pixel to draw functions that then assign the color values to the leds e.g.:
+In order to display images on the cap you pass a vector of strings that represent each pixel to draw functions that then assign the color values to the leds e.g.:
 ```
-const char pixelSDSU[32][33] = {
+const std::vector<std::string> sdsu = {
   ".........www...............wwwww",
   "........wwrww..............w...w",
   ".......wwrrrww...........www...w",
@@ -45,7 +45,7 @@ const char pixelSDSU[32][33] = {
 ```
 
 ## PNG to 2D Array Script
-In order to prevent me from going insane when trying to convert pixel arts to the code, I have made a short python script that outputs the 2D array needed based on an inputted .png file.
+In order to prevent me from going insane when trying to convert pixel arts to the code, I have made a short python script that outputs string vector needed based on an inputted .png file.
 ```
-python png_to_char_array.py <filename.png>
+python png_to_vector.py <filename.png>
 ```
