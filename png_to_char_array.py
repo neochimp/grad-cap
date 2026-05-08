@@ -16,6 +16,7 @@ COLOR_MAP = {
     (255, 0, 0): "r",        # red
     (255, 255, 255): "w",    # white
     (0, 0, 255): "b",        # blue
+    (245, 193, 66): "y",     #brown university yellow
     (0, 0, 0): ".",          # black / transparent
 }
 
