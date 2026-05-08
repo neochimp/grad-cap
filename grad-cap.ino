@@ -4,7 +4,7 @@
 
 #define HEIGHT 64
 #define WIDTH 64
-#define MAX_FPS 2
+#define MAX_FPS 20
 //MUST BE BETWEEN 0 AND 1
 #define BRIGHTNESS 0.3
 
@@ -40,9 +40,25 @@ void setup() {
   Serial.begin(115200);
   ProtomatterStatus status = matrix.begin();
   Serial.printf("Protomatter begin() status: %d\n", status);
+
+  pinMode(6, INPUT_PULLUP);
+  pinMode(7, INPUT_PULLUP);
 }
 
+const uint16_t NUM_STATES = 3;
 uint16_t state = 0;
+
+const unsigned long COMBO_WINDOW_MS = 500;
+
+bool lastUpReading = HIGH;
+bool lastDownReading = HIGH;
+
+bool pendingUp = false;
+bool pendingDown = false;
+
+unsigned long pendingUpTime = 0;
+unsigned long pendingDownTime = 0;
+
 void loop() {
   // Limit the animation frame rate to MAX_FPS.  Because the subsequent sand
   // calculations are non-deterministic (don't always take the same amount
@@ -51,14 +67,81 @@ void loop() {
   uint32_t t;
   while(((t = micros()) - prevTime) < (1000000L / MAX_FPS));
   prevTime = t;
-
+  unsigned long now = millis();
+ 
   matrix.fillScreen(0x0); //clear previous data
-  if(state == 0){
-    drawSpriteFill(sdsu);
-    state = 1;
-  }else if(state == 1){
-    drawSpriteFill(brown);
-    state = 0;
+  
+  bool upReading = digitalRead(6);
+  bool downReading = digitalRead(7);
+
+  bool upPressed = lastUpReading == HIGH && upReading == LOW;
+  bool downPressed = lastDownReading == HIGH && downReading == LOW;
+  
+  // New up press
+  if (upPressed) {
+    pendingUp = true;
+    pendingUpTime = now;
+  }
+  
+  // New down press
+  if (downPressed) {
+    pendingDown = true;
+    pendingDownTime = now;
+  }
+  
+  // Combo detected
+  if (pendingUp && pendingDown &&
+      abs((long)(pendingUpTime - pendingDownTime)) <= COMBO_WINDOW_MS) {
+    Serial.println("SPECIAL MODE ACTIVATED");
+    if(state == 10){
+      state = 0;
+    }else{
+      state = 10;
+    }
+  
+    pendingUp = false;
+    pendingDown = false;
+  }
+  
+  // Up press expired without combo
+  if (pendingUp && now - pendingUpTime > COMBO_WINDOW_MS) {
+    if(state != 10){
+      state = (state + 1) % NUM_STATES;
+    }
+    pendingUp = false;
+  }
+  
+  // Down press expired without combo
+  if (pendingDown && now - pendingDownTime > COMBO_WINDOW_MS) {
+    if(state != 10){
+      state = (state + NUM_STATES - 1) % NUM_STATES;
+    } 
+    pendingDown = false;
+  }
+  
+  lastUpReading = upReading;
+  lastDownReading = downReading;
+  
+  Serial.print("Pin 6: ");
+  Serial.print(digitalRead(6));
+  Serial.print("  Pin 7: ");
+  Serial.print(digitalRead(7));
+  Serial.print("  State: ");
+  Serial.println(state);
+  
+  switch (state) {
+    case 0:
+      drawSpriteFill(sdsu);
+      break;
+    case 1:
+      drawSpriteFill(brown);
+      break;
+    case 2:
+      drawSpriteFill(mrgiggles);
+      break;
+    case 10:
+      drawSpriteFill(league);
+      break;
   }
 
   matrix.show(); // Copy data to matrix buffers
