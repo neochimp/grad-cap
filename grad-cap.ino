@@ -4,7 +4,8 @@
 #define HEIGHT 64
 #define WIDTH 64
 #define MAX_FPS 45
-#define MAX_BRIGHTNESS_DIVIDER 15 // dividing 255/16 does not show
+//MUST BE BETWEEN 0 AND 1
+#define BRIGHTNESS 0.3
 
 #if defined(_VARIANT_MATRIXPORTAL_M4_) // MatrixPortal M4
 uint8_t rgbPins[]  = {7, 8, 9, 10, 11, 12};
@@ -45,4 +46,15 @@ void loop() {
   matrix.fillScreen(0x0); //clear previous data
 
   matrix.show(); // Copy data to matrix buffers
+}
+
+#define COLOR_DIMMED(R, G, B) matrix.color565(R*BRIGHTNESS, G*BRIGHTNESS, B*BRIGHTNESS)
+uint16_t colorFromChar(char c) {
+  switch (c) {
+    case 'r': return COLOR_DIMMED(255, 0, 0);
+    case 'w': return COLOR_DIMMED(255, 255, 255);
+    case 'b': return COLOR_DIMMED(0, 0, 255);
+    case 'y': return COLOR_DIMMED(245, 237, 0);
+    default:  return 0;
+  }
 }
