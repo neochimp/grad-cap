@@ -1,5 +1,6 @@
 import sys
 from PIL import Image
+from pathlib import Path
 
 # Get png file
 if len(sys.argv) < 2:
@@ -9,7 +10,7 @@ if len(sys.argv) < 2:
 INPUT_FILE = sys.argv[1]
 
 # Name of the Arduino array to generate
-ARRAY_NAME = INPUT_FILE[:-4]
+ARRAY_NAME = Path(INPUT_FILE).stem
 
 # Map exact RGB colors to characters
 COLOR_MAP = {
@@ -44,7 +45,7 @@ def closest_color_char(r, g, b, a):
 img = Image.open(INPUT_FILE).convert("RGBA")
 width, height = img.size
 
-print(f"const char {ARRAY_NAME}[{height}][{width + 1}] = {{")
+print(f"const std::vector<std::string> {ARRAY_NAME} = {{")
 
 for y in range(height):
     row = ""
