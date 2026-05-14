@@ -4,7 +4,7 @@
 
 #define HEIGHT 64
 #define WIDTH 64
-#define MAX_FPS 20
+#define MAX_FPS 45
 //MUST BE BETWEEN 0 AND 1
 #define BRIGHTNESS 0.3
 
@@ -29,6 +29,12 @@ uint8_t oePin      = 14;
 #elif HEIGHT == 64
 #define NUM_ADDR_PINS 5
 #endif
+
+struct color {
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
+};
 
 uint32_t prevTime = 0; // Used for frames-per-second throttle
 
@@ -59,6 +65,7 @@ bool pendingDown = false;
 unsigned long pendingUpTime = 0;
 unsigned long pendingDownTime = 0;
 
+float step = 0;
 void loop() {
   // Limit the animation frame rate to MAX_FPS.  Because the subsequent sand
   // calculations are non-deterministic (don't always take the same amount
@@ -128,49 +135,82 @@ void loop() {
   Serial.print(digitalRead(7));
   Serial.print("  State: ");
   Serial.println(state);
-  
+
   switch (state) {
-    case 0:
+    case 0: 
       drawSpriteFill(sdsu);
       break;
     case 1:
-      drawSpriteFill(brown);
+      drawSpriteLerp(sdsu, brown, step);
+      step += 0.05;
+      if (step >= 1) {
+        step = 0;
+        state = 2;
+      }
       break;
     case 2:
-      drawSpriteFill(mrgiggles);
+      drawSpriteFill(brown);
       break;
     case 10:
       drawSpriteFill(league);
-      break;
   }
-
+  
+  //if (state == 9) {
+  //  drawSpriteLerp(sdsu, brown, step);
+  //}
   matrix.show(); // Copy data to matrix buffers
 }
 
-#define COLOR_DIMMED(R, G, B) matrix.color565(R*BRIGHTNESS, G*BRIGHTNESS, B*BRIGHTNESS)
-uint16_t colorFromChar(char c) {
+color colorFromChar(char c) {
   switch (c) {
-    case 'r': return COLOR_DIMMED(255, 0, 0);
-    case 'w': return COLOR_DIMMED(255, 255, 255);
-    case 'b': return COLOR_DIMMED(0, 0, 255);
-    case 'y': return COLOR_DIMMED(245, 237, 0);
-    default:  return 0;
+    case 'r': return color{255, 0, 0};
+    case 'w': return color{255, 255, 255};
+    case 'b': return color{0, 0, 255};
+    case 'y': return color{245, 237, 0};
+    default:  return color{0, 0, 0};
   }
 }
 
-void drawSpriteFill(const std::vector<std::string> sprite) {
+#define COLOR_DIMMED(R, G, B) matrix.color565(R*BRIGHTNESS, G*BRIGHTNESS, B*BRIGHTNESS)
+uint16_t lerpColors(color start_color, color end_color, float t){
+
+  if (t < 0.0f) t = 0.0f;
+  if (t > 1.0f) t = 1.0f;
+  
+  uint8_t r = (uint8_t)(((1 - t)*start_color.r) + t * end_color.r + 0.5f);
+  uint8_t g = (uint8_t)(((1 - t)*start_color.g) + t * end_color.g + 0.5f);
+  uint8_t b = (uint8_t)(((1 - t)*start_color.b) + t * end_color.b + 0.5f);
+
+  return COLOR_DIMMED(r, g, b);
+}
+
+
+void drawSpriteFill(const std::vector<std::string>& sprite) {
   int scaleY = HEIGHT/sprite.size();
   int scaleX = WIDTH/sprite[0].size();
-  for (int y = 0; y < sprite.size(); y++) {
-    for (int x = 0; x < sprite[y].size(); x++) {
-      uint16_t c = colorFromChar(sprite[y][x]);
-      if (c != 0) {
-        for (int dy = 0; dy < scaleY; dy++) {
-          for (int dx = 0; dx < scaleX; dx++){
-            matrix.drawPixel(x * scaleX + dx, y * scaleY + dy, c);
-          }
-        }
-      }
+  for (int y = 0; y < HEIGHT; y++) {
+    for (int x = 0; x < WIDTH; x++) {
+      color color_struct = colorFromChar(sprite[y/scaleY][x/scaleX]);
+      uint16_t c = COLOR_DIMMED(color_struct.r, color_struct.g, color_struct.b);
+      matrix.drawPixel(x, y, c);
     }
   }
+}
+
+void drawSpriteLerp(const std::vector<std::string>& start_sprite, const std::vector<std::string>& end_sprite, float t) {
+  int start_scale_y = HEIGHT/start_sprite.size();
+  int start_scale_x = WIDTH/start_sprite[0].size();
+  
+  int end_scale_y = HEIGHT/end_sprite.size();
+  int end_scale_x = WIDTH/end_sprite[0].size();
+
+  for (int y = 0; y < HEIGHT; y++) {
+    for (int x = 0; x < WIDTH; x++) {
+      color start_color = colorFromChar(start_sprite[y/start_scale_y][x/start_scale_x]);
+      color end_color = colorFromChar(end_sprite[y/end_scale_y][x/end_scale_x]);
+      uint16_t c = lerpColors(start_color, end_color, t);
+      matrix.drawPixel(x, y, c);
+    }
+  }
+
 }

@@ -11,7 +11,7 @@ In order to display images on the cap you pass a vector of strings that represen
 const std::vector<std::string> sdsu = {
   ".........www...............wwwww",
   "........wwrww..............w...w",
-  ".......wwrrrww...........www...w",
+  ".......wwrrcrww...........www...w",
   "......wwrrrrrww....wwww..w.....w",
   ".....wwrrrrrrrwwwwww..wwww...www",
   "....wwrrrrrrrrrww............w..",
