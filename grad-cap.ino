@@ -6,7 +6,7 @@
 #define WIDTH 64
 #define MAX_FPS 20
 //MUST BE BETWEEN 0 AND 1
-#define BRIGHTNESS 0.3
+#define BRIGHTNESS 0.2
 
 #if defined(_VARIANT_MATRIXPORTAL_M4_) // MatrixPortal M4
 uint8_t rgbPins[]  = {7, 8, 9, 10, 11, 12};
@@ -36,6 +36,21 @@ struct color {
   uint8_t b;
 };
 
+color dvdColors[] = {
+  {255, 0, 0},     // red
+  {23, 138, 58},     // green
+  {199, 4, 85},     //pink
+  {255, 0, 0},     // red
+  {0, 0, 255},     // blue
+  {25, 156, 138},   // teal
+  {255, 0, 0},     // red
+  {131, 25, 140},   // purple
+  {196, 108, 0},   // orange
+};
+
+const int DVD_COLOR_COUNT = sizeof(dvdColors) / sizeof(dvdColors[0]);
+int dvdColorIndex = 0;
+
 uint32_t prevTime = 0; // Used for frames-per-second throttle
 
 Adafruit_Protomatter matrix(
@@ -51,7 +66,7 @@ void setup() {
   pinMode(7, INPUT_PULLUP);
 }
 
-const uint16_t NUM_STATES = 3;
+const uint16_t NUM_STATES = 4;
 uint16_t state = 0;
 
 const unsigned long COMBO_WINDOW_MS = 500;
@@ -102,14 +117,14 @@ void loop() {
     pending_down_time = now;
   }
   
-  // Combo detected
+  // Combo detected [disabled]
   if (pending_up && pending_down &&
       abs((long)(pending_up_time - pending_down_time)) <= COMBO_WINDOW_MS) {
     Serial.println("SPECIAL MODE ACTIVATED");
     if(state == 10){
-      state = 0;
+      //state = 0;
     }else{
-      state = 10;
+      //state = 10;
     }
   
     pending_up = false;
@@ -127,7 +142,9 @@ void loop() {
   // Down press expired without combo
   if (pending_down && now - pending_down_time > COMBO_WINDOW_MS) {
     if(state != 10){
-      state = (state + NUM_STATES - 1) % NUM_STATES;
+      //this is what it should be but im disabling it so i dont fat finger the button 
+      //state = (state + NUM_STATES - 1) % NUM_STATES;
+      state = (state + 1) % NUM_STATES;
     } 
     pending_down = false;
   }
@@ -150,50 +167,59 @@ void loop() {
       pos_x += vel_x;
       pos_y += vel_y;
 
+      bool bounced = false;
+
       if(pos_x >= WIDTH - sprite_width){
         pos_x = WIDTH - sprite_width;
         vel_x *= -1;  
         vel_y = random(0, 2) * (vel_y < 0 ? -1 : 1);
+        bounced = true;
       }
       if(pos_x <= 0){
         pos_x = 0;
         vel_x *= -1;
         vel_y = random(0, 2) * (vel_y < 0 ? -1 : 1);
+        bounced = true;
       }
 
       if(pos_y >= HEIGHT - sprite_height){
         pos_y = HEIGHT - sprite_height;
         vel_y *= -1;
         vel_x = random(0, 2) * (vel_x < 0 ? -1 : 1);
+        bounced = true;
       }
       if(pos_y <= 0){
         pos_y = 0;
         vel_y *= -1;
         vel_x = random(0, 2) * (vel_x < 0 ? -1 : 1);
+        bounced = true;
       }
 
-      drawSpritePos(sdsu, pos_x, pos_y);
+      if (bounced) {
+        dvdColorIndex = (dvdColorIndex + 1) % DVD_COLOR_COUNT;
+      }
+      drawSpriteDVD(sdsu, pos_x, pos_y, dvdColors[dvdColorIndex]);
 
       break;
     }
-
     case 1: {
-      drawSpriteLerp(sdsu, brown, step);
-      step += 0.05;
-      if (step >= 1) {
-        step = 0;
-        state = 2;
-      }
+      drawSpriteFill(sdsu);
       break;
     }
     case 2: {
+      drawSpriteLerp(sdsu, brown, step);
+      step += 0.1;
+      if (step >= 1) {
+        step = 0;
+        state = 3;
+      }
+      break;
+    }
+    case 3: {
       drawSpriteFill(brown);
       break;
-    case 10:
-      drawSpriteFill(league);
-    } 
-  }
-  
+    }
+  } 
   //if (state == 9) {
   //  drawSpriteLerp(sdsu, brown, step);
   //}
@@ -240,6 +266,22 @@ void drawSpritePos(const std::vector<std::string>& sprite, uint16_t pos_x, uint1
   for (int y = 0; y < sprite.size(); y++) {
     for (int x = 0; x < sprite[y].size(); x++) {
       color color_struct = colorFromChar(sprite[y][x]);
+      uint16_t c = COLOR_DIMMED(color_struct.r, color_struct.g, color_struct.b);
+      matrix.drawPixel(pos_x + x, pos_y + y, c);
+    }
+  }
+}
+
+void drawSpriteDVD(const std::vector<std::string>& sprite, uint16_t pos_x, uint16_t pos_y, color dvd_color) {
+  for (int y = 0; y < sprite.size(); y++) {
+    for (int x = 0; x < sprite[y].size(); x++) {
+      char pixel = sprite[y][x];
+      color color_struct;
+      if (pixel == 'r') {
+        color_struct = dvd_color;
+      }else{
+        color_struct = colorFromChar(pixel);
+      }
       uint16_t c = COLOR_DIMMED(color_struct.r, color_struct.g, color_struct.b);
       matrix.drawPixel(pos_x + x, pos_y + y, c);
     }
