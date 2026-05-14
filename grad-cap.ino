@@ -4,7 +4,7 @@
 
 #define HEIGHT 64
 #define WIDTH 64
-#define MAX_FPS 45
+#define MAX_FPS 20
 //MUST BE BETWEEN 0 AND 1
 #define BRIGHTNESS 0.3
 
@@ -56,16 +56,22 @@ uint16_t state = 0;
 
 const unsigned long COMBO_WINDOW_MS = 500;
 
-bool lastUpReading = HIGH;
-bool lastDownReading = HIGH;
+bool last_up_reading = HIGH;
+bool last_down_reading = HIGH;
 
-bool pendingUp = false;
-bool pendingDown = false;
+bool pending_up = false;
+bool pending_down = false;
 
-unsigned long pendingUpTime = 0;
-unsigned long pendingDownTime = 0;
+unsigned long pending_up_time = 0;
+unsigned long pending_down_time = 0;
 
 float step = 0;
+
+uint16_t pos_x = 5;
+uint16_t pos_y = 9;
+float vel_x = 2;
+float vel_y = 1;
+
 void loop() {
   // Limit the animation frame rate to MAX_FPS.  Because the subsequent sand
   // calculations are non-deterministic (don't always take the same amount
@@ -78,27 +84,27 @@ void loop() {
  
   matrix.fillScreen(0x0); //clear previous data
   
-  bool upReading = digitalRead(6);
-  bool downReading = digitalRead(7);
+  bool up_reading = digitalRead(6);
+  bool down_reading = digitalRead(7);
 
-  bool upPressed = lastUpReading == HIGH && upReading == LOW;
-  bool downPressed = lastDownReading == HIGH && downReading == LOW;
+  bool up_pressed = last_up_reading == HIGH && up_reading == LOW;
+  bool down_pressed = last_down_reading == HIGH && down_reading == LOW;
   
   // New up press
-  if (upPressed) {
-    pendingUp = true;
-    pendingUpTime = now;
+  if (up_pressed) {
+    pending_up = true;
+    pending_up_time = now;
   }
   
   // New down press
-  if (downPressed) {
-    pendingDown = true;
-    pendingDownTime = now;
+  if (down_pressed) {
+    pending_down = true;
+    pending_down_time = now;
   }
   
   // Combo detected
-  if (pendingUp && pendingDown &&
-      abs((long)(pendingUpTime - pendingDownTime)) <= COMBO_WINDOW_MS) {
+  if (pending_up && pending_down &&
+      abs((long)(pending_up_time - pending_down_time)) <= COMBO_WINDOW_MS) {
     Serial.println("SPECIAL MODE ACTIVATED");
     if(state == 10){
       state = 0;
@@ -106,28 +112,28 @@ void loop() {
       state = 10;
     }
   
-    pendingUp = false;
-    pendingDown = false;
+    pending_up = false;
+    pending_down = false;
   }
   
   // Up press expired without combo
-  if (pendingUp && now - pendingUpTime > COMBO_WINDOW_MS) {
+  if (pending_up && now - pending_up_time > COMBO_WINDOW_MS) {
     if(state != 10){
       state = (state + 1) % NUM_STATES;
     }
-    pendingUp = false;
+    pending_up = false;
   }
   
   // Down press expired without combo
-  if (pendingDown && now - pendingDownTime > COMBO_WINDOW_MS) {
+  if (pending_down && now - pending_down_time > COMBO_WINDOW_MS) {
     if(state != 10){
       state = (state + NUM_STATES - 1) % NUM_STATES;
     } 
-    pendingDown = false;
+    pending_down = false;
   }
   
-  lastUpReading = upReading;
-  lastDownReading = downReading;
+  last_up_reading = up_reading;
+  last_down_reading = down_reading;
   
   Serial.print("Pin 6: ");
   Serial.print(digitalRead(6));
@@ -137,10 +143,41 @@ void loop() {
   Serial.println(state);
 
   switch (state) {
-    case 0: 
-      drawSpriteFill(sdsu);
+    case 0: {
+      int sprite_width = sdsu[0].size();
+      int sprite_height = sdsu.size();
+
+      pos_x += vel_x;
+      pos_y += vel_y;
+
+      if(pos_x >= WIDTH - sprite_width){
+        pos_x = WIDTH - sprite_width;
+        vel_x *= -1;  
+        vel_y = random(0, 2) * (vel_y < 0 ? -1 : 1);
+      }
+      if(pos_x <= 0){
+        pos_x = 0;
+        vel_x *= -1;
+        vel_y = random(0, 2) * (vel_y < 0 ? -1 : 1);
+      }
+
+      if(pos_y >= HEIGHT - sprite_height){
+        pos_y = HEIGHT - sprite_height;
+        vel_y *= -1;
+        vel_x = random(0, 2) * (vel_x < 0 ? -1 : 1);
+      }
+      if(pos_y <= 0){
+        pos_y = 0;
+        vel_y *= -1;
+        vel_x = random(0, 2) * (vel_x < 0 ? -1 : 1);
+      }
+
+      drawSpritePos(sdsu, pos_x, pos_y);
+
       break;
-    case 1:
+    }
+
+    case 1: {
       drawSpriteLerp(sdsu, brown, step);
       step += 0.05;
       if (step >= 1) {
@@ -148,11 +185,13 @@ void loop() {
         state = 2;
       }
       break;
-    case 2:
+    }
+    case 2: {
       drawSpriteFill(brown);
       break;
     case 10:
       drawSpriteFill(league);
+    } 
   }
   
   //if (state == 9) {
@@ -193,6 +232,16 @@ void drawSpriteFill(const std::vector<std::string>& sprite) {
       color color_struct = colorFromChar(sprite[y/scaleY][x/scaleX]);
       uint16_t c = COLOR_DIMMED(color_struct.r, color_struct.g, color_struct.b);
       matrix.drawPixel(x, y, c);
+    }
+  }
+}
+
+void drawSpritePos(const std::vector<std::string>& sprite, uint16_t pos_x, uint16_t pos_y) {
+  for (int y = 0; y < sprite.size(); y++) {
+    for (int x = 0; x < sprite[y].size(); x++) {
+      color color_struct = colorFromChar(sprite[y][x]);
+      uint16_t c = COLOR_DIMMED(color_struct.r, color_struct.g, color_struct.b);
+      matrix.drawPixel(pos_x + x, pos_y + y, c);
     }
   }
 }
